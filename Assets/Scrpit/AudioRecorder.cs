@@ -2,72 +2,76 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class AudioRecorder : MonoBehaviour
 {
-    public AudioSource audioSource; // 녹음을 재생할 때 사용할 AudioSource
+    public Button recordButton;
+    public AudioSource audioSource;
+    private bool isRecording = false;
     private AudioClip recordedClip;
-    private string filePath;
+    private Image buttonImage; // 버튼의 이미지 컴포넌트를 사용하여 색상을 변경
 
     void Start()
     {
-        // 파일을 저장할 경로 설정 (안드로이드에서는 Application.persistentDataPath 사용)
-        filePath = Path.Combine(Application.persistentDataPath, "recordedAudio.wav");
+        recordButton.onClick.AddListener(ToggleRecording);
+        buttonImage = recordButton.GetComponent<Image>(); // 버튼의 이미지 컴포넌트를 가져옴
+        buttonImage.color = Color.white; // 초기 버튼 색상을 흰색으로 설정
     }
 
-    // 녹음 시작
-    public void StartRecording()
+    void ToggleRecording()
+    {
+        if (isRecording)
+        {
+            StopRecording();
+        }
+        else
+        {
+            StartRecording();
+        }
+    }
+
+    void StartRecording()
     {
         if (Microphone.devices.Length > 0)
         {
-            recordedClip = Microphone.Start(null, false, 10, 44100); // 10초 제한, 샘플 레이트 44100Hz
+            isRecording = true;
+            recordedClip = Microphone.Start(null, false, 60, 44100); // 60초 동안 최대 녹음
+            Debug.Log("Recording started...");
+            buttonImage.color = Color.red; // 녹음 중일 때 버튼 색상을 빨간색으로 변경
         }
         else
         {
-            Debug.LogWarning("No microphone found.");
+            Debug.LogWarning("No microphone detected!");
         }
     }
 
-    // 녹음 종료 및 파일 저장
-    public void StopRecording()
+    void StopRecording()
     {
-        if (Microphone.IsRecording(null))
+        if (isRecording)
         {
             Microphone.End(null);
+            isRecording = false;
+            Debug.Log("Recording stopped.");
+            SaveRecording();
+            buttonImage.color = Color.white; // 녹음이 끝났을 때 버튼 색상을 다시 흰색으로 변경
 
-            SaveAudioClip(recordedClip, filePath);
-            Debug.Log("Recording saved at: " + filePath);
+            GoToListenScene();
         }
     }
 
-    // 녹음된 파일 재생
-    public void PlayRecordedAudio()
+    void SaveRecording()
     {
-        if (File.Exists(filePath))
-        {
-            StartCoroutine(LoadAudioAndPlay(filePath));
-        }
-        else
-        {
-            Debug.LogWarning("No recorded file found.");
-        }
+        string filePath = Path.Combine(Application.persistentDataPath, "recordedAudio.wav");
+        SavWav.Save(filePath, recordedClip);
+        PlayerPrefs.SetString("SavedAudioPath", filePath);
+        PlayerPrefs.Save();
     }
 
-    // 오디오 클립 저장 (WAV 포맷)
-    private void SaveAudioClip(AudioClip clip, string path)
+    // 씬을 ListenScene으로 전환
+    void GoToListenScene()
     {
-        // WAV 포맷으로 저장하는 커스텀 메서드 (이전에 만든 SavWav 클래스가 필요함)
-        SavWav.Save(path, clip);
-    }
-
-    // 파일을 읽어오고 재생
-    private System.Collections.IEnumerator LoadAudioAndPlay(string path)
-    {
-        WWW www = new WWW("file://" + path);
-        yield return www;
-
-        AudioClip audioClip = www.GetAudioClip(false, true, AudioType.WAV);
-        audioSource.clip = audioClip;
-        audioSource.Play();
+        SceneManager.LoadScene("ListenScene"); // ListenScene으로 전환
     }
 }
