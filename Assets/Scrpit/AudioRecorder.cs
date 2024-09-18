@@ -8,6 +8,7 @@ using UnityEngine.SceneManagement;
 public class AudioRecorder : MonoBehaviour
 {
     public Button recordButton;
+    public Button nextButton;
     public AudioSource audioSource;
     private bool isRecording = false;
     private AudioClip recordedClip;
@@ -16,8 +17,11 @@ public class AudioRecorder : MonoBehaviour
     void Start()
     {
         recordButton.onClick.AddListener(ToggleRecording);
-        buttonImage = recordButton.GetComponent<Image>(); // 버튼의 이미지 컴포넌트를 가져옴
-        buttonImage.color = Color.white; // 초기 버튼 색상을 흰색으로 설정
+        nextButton.onClick.AddListener(GoToListenScene); // Next 버튼 클릭 이벤트 추가
+        buttonImage = recordButton.GetComponent<Image>();
+        buttonImage.color = Color.white;
+
+        nextButton.interactable = false; // 녹음 완료 전까지 비활성화
     }
 
     void ToggleRecording()
@@ -37,9 +41,8 @@ public class AudioRecorder : MonoBehaviour
         if (Microphone.devices.Length > 0)
         {
             isRecording = true;
-            recordedClip = Microphone.Start(null, false, 60, 44100); // 60초 동안 최대 녹음
-            Debug.Log("Recording started...");
-            buttonImage.color = Color.red; // 녹음 중일 때 버튼 색상을 빨간색으로 변경
+            recordedClip = Microphone.Start(null, false, 60, 44100); // 최대 60초 녹음
+            buttonImage.color = Color.red;
         }
         else
         {
@@ -53,25 +56,26 @@ public class AudioRecorder : MonoBehaviour
         {
             Microphone.End(null);
             isRecording = false;
-            Debug.Log("Recording stopped.");
             SaveRecording();
-            buttonImage.color = Color.white; // 녹음이 끝났을 때 버튼 색상을 다시 흰색으로 변경
+            buttonImage.color = Color.white;
 
-            GoToListenScene();
+            // 녹음이 완료되면 Next 버튼 활성화
+            nextButton.interactable = true;
         }
     }
 
     void SaveRecording()
     {
-        string filePath = Path.Combine(Application.persistentDataPath, "recordedAudio.wav");
+        string fileName = "recordedAudio_" + System.DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".wav";
+        string filePath = Path.Combine(Application.persistentDataPath, fileName);
         SavWav.Save(filePath, recordedClip);
-        PlayerPrefs.SetString("SavedAudioPath", filePath);
+        PlayerPrefs.SetString("LastSavedAudioPath", filePath); // 파일 경로 저장
         PlayerPrefs.Save();
     }
 
-    // 씬을 ListenScene으로 전환
+    // Next 버튼 클릭 시 ListenScene으로 전환
     void GoToListenScene()
     {
-        SceneManager.LoadScene("ListenScene"); // ListenScene으로 전환
+        SceneManager.LoadScene("ListenScene");
     }
 }

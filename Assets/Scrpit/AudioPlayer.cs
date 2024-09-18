@@ -3,52 +3,56 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System.IO;
+using UnityEngine.SceneManagement;
 
 public class AudioPlayer : MonoBehaviour
 {
-    public Button playButton;
+    public Transform buttonContainer; // 동적 버튼을 넣을 UI 컨테이너 (Vertical Layout Group)
+    public Button buttonPrefab; // 버튼 프리팹
+    public Button backButton;
     public AudioSource audioSource;
-    private string filePath;
 
     void Start()
     {
-        // PlayerPrefs에서 저장된 오디오 파일 경로 불러오기
-        filePath = PlayerPrefs.GetString("SavedAudioPath", "");
-
-        if (File.Exists(filePath))
-        {
-            // 오디오 파일을 로드하고 재생할 준비
-            StartCoroutine(LoadAudio(filePath));
-        }
-        else
-        {
-            Debug.LogWarning("No audio file found at: " + filePath);
-        }
-
-        playButton.onClick.AddListener(PlayAudio);
+        LoadAudioFiles();
+        backButton.onClick.AddListener(GoToRecordScene);
     }
 
-    IEnumerator LoadAudio(string path)
+    void LoadAudioFiles()
+    {
+        string[] files = Directory.GetFiles(Application.persistentDataPath, "*.wav"); // 모든 .wav 파일 가져오기
+
+        foreach (string file in files)
+        {
+            string fileName = Path.GetFileName(file);
+
+            // 버튼을 동적으로 생성
+            Button newButton = Instantiate(buttonPrefab, buttonContainer);
+            newButton.GetComponentInChildren<Text>().text = fileName; // 버튼의 텍스트를 파일 이름으로 설정
+            newButton.onClick.AddListener(() => PlayAudio(file)); // 버튼 클릭 시 해당 파일 재생
+        }
+    }
+
+    void PlayAudio(string filePath)
+    {
+        StartCoroutine(LoadAndPlayAudio(filePath));
+    }
+
+    IEnumerator LoadAndPlayAudio(string path)
     {
         using (WWW www = new WWW("file://" + path))
         {
             yield return www;
 
             audioSource.clip = www.GetAudioClip(false, false);
-            Debug.Log("Audio loaded from: " + path);
+            audioSource.Play();
+            Debug.Log("Playing audio: " + path);
         }
     }
 
-    void PlayAudio()
+    // Back 버튼 클릭 시 RecordScene으로 전환
+    void GoToRecordScene()
     {
-        if (audioSource.clip != null)
-        {
-            audioSource.Play();
-            Debug.Log("Playing audio...");
-        }
-        else
-        {
-            Debug.LogWarning("No audio clip loaded to play.");
-        }
+        SceneManager.LoadScene("RecordScene");
     }
 }
